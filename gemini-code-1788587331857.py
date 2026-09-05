@@ -1,70 +1,78 @@
 import streamlit as st
 
 # ==========================================
-# [Session State 초기화]
+# [Session State 기반 게임 데이터 초기화]
 # ==========================================
+if "user_xp" not in st.session_state:
+    st.session_state.user_xp = 0
+if "user_level" not in st.session_state:
+    st.session_state.user_level = 1
+if "user_hp" not in st.session_state:
+    st.session_state.user_hp = 100
 if "incorrect_notes" not in st.session_state:
     st.session_state.incorrect_notes = {}
 
-# ==========================================
-# [채점 및 피드백 로직] - 유연한 의미 기반 평가
-# ==========================================
+# XP 및 레벨업 업데이트 함수
+def add_xp(amount):
+    st.session_state.user_xp += amount
+    # 100 XP당 1 레벨업
+    new_level = (st.session_state.user_xp // 100) + 1
+    if new_level > st.session_state.user_level:
+        st.session_state.user_level = new_level
+        st.balloons()
+        st.toast(f"🎉 LEVEL UP! 레벨 {st.session_state.user_level}이(가) 되었습니다!", icon="⚔️")
 
+# ==========================================
+# [채점 및 유연한 평가 로직]
+# ==========================================
 def evaluate_meaning(user_text, concepts, bad_concepts=[]):
-    """학생 답안의 의미 포함 여부 평가"""
     text = user_text.strip().replace(" ", "")
     if not text:
         return False
-    # 부정적인 오개념 표현이 포함되어 있으면 False
     if any(bad in text for bad in bad_concepts):
         return False
-    # 제시된 의미 개념군 중 하나라도 맞으면 True
     return any(concept in text for concept in concepts)
-
 
 def grade_set1_q1(ans1, ans2, ans3):
     score = 0
     feedback = {}
     
-    # (1) 과제 특성 (의미 확장)
+    # (1) 과제 특성
     easy_concepts = ["쉬운", "쉬움", "부담없는", "친숙한", "노력이들지않는", "난이도가낮은", "단순한"]
     if evaluate_meaning(ans1, easy_concepts):
         score += 1
-        feedback["(1) 과제 특성"] = {"pass": True, "comment": "과제의 난이도(쉬움/친숙함)를 올바르게 파악했습니다."}
+        feedback["(1) 과제 특성"] = {"pass": True, "comment": "🎯 과제의 난이도 특성을 올바르게 분석했습니다."}
     else:
-        score += 0
         feedback["(1) 과제 특성"] = {
             "pass": False,
-            "comment": "과제의 난이도가 상대적으로 '쉽거나 친숙한 과제'라는 점이 드러나지 않았습니다.",
-            "guide": "'비교적 쉬운 과제' 또는 '친숙하고 좋아하는 과목'처럼 과제의 부담이 적다는 의미를 포함해 보세요.",
+            "comment": "🛡️ 과제가 상대적으로 '쉽거나 친숙하다'는 핵심 특성이 빠져있습니다.",
+            "guide": "지문에서 다룬 '부담이 적거나 친숙한 과제'의 특성이 드러나도록 써보세요.",
             "user_ans": ans1
         }
         
-    # (2) 학습 환경 및 방법 (의미 확장)
+    # (2) 학습 환경
     alone_concepts = ["혼자", "차분하게", "독자적", "개인", "스스로", "자율적", "방해받지않는"]
     bad_alone = ["함께", "모임", "같이", "여럿이"]
     if evaluate_meaning(ans2, alone_concepts, bad_alone):
         score += 1
-        feedback["(2) 학습 환경"] = {"pass": True, "comment": "타인의 자극을 줄이고 '혼자 집중하는 환경'을 잘 제시했습니다."}
+        feedback["(2) 학습 환경"] = {"pass": True, "comment": "🎯 타인의 자극을 피하고 '혼자 집중하는 환경'을 잘 제시했습니다."}
     else:
-        score += 0
         feedback["(2) 학습 환경"] = {
             "pass": False,
-            "comment": "타인과 함께하는 방식이 아닌 '차분히 혼자 집중하는 방식'이 표현되어야 합니다.",
-            "guide": "'혼자 집중하는 시간을 갖는다' 또는 '독자적인 공간에서 차분히 공부한다'는 방향으로 수정해 보세요.",
+            "comment": "🛡️ 타인과 함께하는 방식이 아니라 '차분히 혼자 집중하는 방식'이 명시되어야 합니다.",
+            "guide": "타인의 방해 없이 '혼자 집중하여 공부한다'는 결론으로 수정해 보세요.",
             "user_ans": ans2
         }
 
-    # (3) 현상 명칭
+    # (3) 심리 현상 명칭
     if "사회적억제" in ans3.strip().replace(" ", ""):
         score += 1
-        feedback["(3) 심리 현상"] = {"pass": True, "comment": "정확한 개념 명칭('사회적 억제')을 잘 작성했습니다."}
+        feedback["(3) 심리 현상"] = {"pass": True, "comment": "🎯 정확한 주문(용어)인 '사회적 억제'를 간파했습니다!"}
     else:
-        score += 0
         feedback["(3) 심리 현상"] = {
             "pass": False,
-            "comment": "'사회적 촉진'과 대비되는 정확한 용어 표기가 필요합니다.",
-            "guide": "지문에서 설명한 타인의 존재가 수행을 방해하는 현상인 '사회적 억제'를 정확히 적어보세요.",
+            "comment": "🛡️ 정확한 심리학 용어 명칭이 필요합니다.",
+            "guide": "지문에서 타인의 존재가 오히려 방해가 되는 현상으로 소개된 '사회적 억제'를 입력하세요.",
             "user_ans": ans3
         }
 
@@ -74,11 +82,9 @@ def grade_set1_q1(ans1, ans2, ans3):
 def grade_set1_q2(ans1, ans2, method1, method2):
     score = 0
     feedback = {}
-    
-    # 방법 중복 여부
     same_method = (method1 == method2)
     
-    # 문항 (1) 검증 (쉬운 과제 / 사회적 촉진 관련 내용)
+    # (1) 문항 검증
     m1_pass = False
     if method1 == "예시" and evaluate_meaning(ans1, ["예를들어", "예컨대", "경우", "도서관", "커피숍", "모임", "함께"]):
         m1_pass = True
@@ -89,16 +95,16 @@ def grade_set1_q2(ans1, ans2, method1, method2):
 
     if m1_pass and not same_method:
         score += 1.5
-        feedback["(1) 문장 작성"] = {"pass": True, "comment": f"선택한 '{method1}'의 특성과 지문의 내용이 잘 들어맞습니다."}
+        feedback["(1) 문장 작성"] = {"pass": True, "comment": f"🎯 스킬 '{method1}'의 특성과 학습 전략을 잘 결합했습니다."}
     else:
         feedback["(1) 문장 작성"] = {
             "pass": False,
-            "comment": f"선택한 설명 방법('{method1}')의 구조적 특성이나 '쉬운 과제는 함께할 때 효율적'이라는 내용이 부족합니다.",
-            "guide": f"'{method1}'의 표현 방식을 활용하여 쉬운 과제를 할 때 커피숍이나 공부 모임을 활용한다는 내용을 완성해 보세요.",
+            "comment": f"🛡️ 선택한 설명 기술('{method1}')의 문장 구조나 '쉬운 과제는 함께해야 한다'는 결론이 약합니다.",
+            "guide": f"'{method1}' 기법을 활용하여 '쉬운 과제나 친숙한 과목은 모임 등을 통해 함께 공부할 때 효율적이다'라는 내용을 완성하세요.",
             "user_ans": ans1
         }
 
-    # 문항 (2) 검증 (어려운 과제 / 사회적 억제 관련 내용)
+    # (2) 문항 검증
     m2_pass = False
     if method2 == "대조" and evaluate_meaning(ans2, ["반면", "달리", "와는르게", "아니라", "혼자"]):
         m2_pass = True
@@ -107,103 +113,119 @@ def grade_set1_q2(ans1, ans2, method1, method2):
     elif method2 == "예시" and evaluate_meaning(ans2, ["예를들어", "경우", "어려운", "복잡한"]):
         m2_pass = True
 
-    # 오개념 검증 (어려운 과제에 함께한다는 결론 제출 시 실패)
     if evaluate_meaning(ans2, ["어려운과제도함께", "어려울때도모임"]):
         m2_pass = False
 
     if m2_pass and not same_method:
         score += 1.5
-        feedback["(2) 문장 작성"] = {"pass": True, "comment": f"선택한 '{method2}'의 특성을 살려 어려운 과제의 학습법을 잘 설명했습니다."}
+        feedback["(2) 문장 작성"] = {"pass": True, "comment": f"🎯 스킬 '{method2}'의 특성을 활용해 어려운 과제 전략을 명확히 설명했습니다."}
     else:
         feedback["(2) 문장 작성"] = {
             "pass": False,
-            "comment": f"'{method2}' 방법의 특성을 살리면서 '어려운 과제는 혼자 집중해야 한다'는 결론이 명확해야 합니다.",
-            "guide": f"'{method2}' 표현 문형을 사용해 지나치게 어렵거나 복잡한 과제는 혼자 차분히 집중해야 학습 효과가 오른다는 방향으로 작성해 보세요.",
+            "comment": f"🛡️ '{method2}' 기술의 표현 방식과 '어려운 과제는 혼자 집중해야 한다'는 결론이 드러나야 합니다.",
+            "guide": f"'{method2}' 표현 패턴을 적용하여, 지나치게 심도 있거나 어려운 과제는 혼자 집중할 때 효율성이 올라간다는 내용으로 작성해 보세요.",
             "user_ans": ans2
         }
 
     return score, 3.0, feedback
 
+
 # ==========================================
-# [Streamlit UI Main]
+# [UI & 게임 스테이지 구성]
 # ==========================================
+st.set_page_config(page_title="서논술형 던전 탐험대", layout="wide", page_icon="⚔️")
 
-st.set_page_config(page_title="서논술형 자동 채점 & 복습 시스템", layout="wide")
+# 사이드바: 게임 대시보드
+st.sidebar.title("⚔️ 탐험대 상태창")
+st.sidebar.markdown(f"**LEVEL:** {st.session_state.user_level}")
+st.sidebar.progress(st.session_state.user_xp % 100 / 100, text=f"XP: {st.session_state.user_xp} / {(st.session_state.user_level)*100}")
+st.sidebar.metric("체력 (HP)", f"{st.session_state.user_hp} / 100")
 
-st.title("📝 국어과 서·논술형 답안 채점 및 맞춤 피드백 시스템")
-st.caption("2회고사 대비 모의 문항 연습 및 오답 피드백")
+if st.sidebar.button("🎮 게임 데이터 리셋"):
+    st.session_state.user_xp = 0
+    st.session_state.user_level = 1
+    st.session_state.user_hp = 100
+    st.session_state.incorrect_notes = {}
+    st.rerun()
 
-# 메인 탭 구성
-main_tab1, main_tab2 = st.tabs(["✍️ 문항 풀이 및 채점", "📖 오답 노트 & 맞춤 피드백"])
+st.title("🏰 국어 서논술형 던전 탐험")
+st.caption("텍스트 퀘스트를 수행하며 서논술형 표현력을 극대화하세요!")
 
+main_tab1, main_tab2 = st.tabs(["⚔️ 퀘스트 수행 (문제 풀이)", "📜 오답 재훈련소 (맞춤 피드백)"])
+
+# ----------------------------------------------------
+# [탭 1] 퀘스트 수행
+# ----------------------------------------------------
 with main_tab1:
-    selected_set = st.selectbox("채점할 문항 세트를 선택하세요", ["실전 적용-1 (학습 환경)"])
+    st.header("STAGE 1. 효율적인 학습 환경의 비밀을 찾아라")
     
-    if selected_set == "실전 적용-1 (학습 환경)":
-        st.header("📌 [실전 적용-1] 과제 난이도에 따른 학습 환경")
+    q_tab1, q_tab2 = st.tabs(["[퀘스트 1] 요약 표 완성", "[퀘스트 2] 설명문 연계"])
+    
+    # [퀘스트 1]
+    with q_tab1:
+        st.subheader("📋 퀘스트 1: 요약 표의 빈칸을 채워라!")
+        st.write("지문의 내용을 분석하여 빈칸 (1), (2), (3)에 들어갈 적절한 답을 입력하세요.")
         
-        q_tab1, q_tab2 = st.tabs(["[서·논술형 1]", "[서·논술형 2]"])
+        # 정답 유출 방지: placeholder에는 힌트성 예시를 완전히 제거함
+        ans1 = st.text_input("(1) 과제의 특성:", placeholder="답안을 입력하세요...")
+        ans2 = st.text_input("(2) 효율적인 환경 및 방법:", placeholder="답안을 입력하세요...")
+        ans3 = st.text_input("(3) 관련된 심리 현상 명칭:", placeholder="답안을 입력하세요...")
         
-        # [서·논술형 1]
-        with q_tab1:
-            st.subheader("요약 표 채우기")
-            a1 = st.text_input("(1) 과제의 특성:", placeholder="예: 비교적 쉬운 과제, 부담 없는 학습 내용 등")
-            a2 = st.text_input("(2) 효율적인 환경 및 방법:", placeholder="예: 차분하게 혼자 집중하는 시간을 가짐")
-            a3 = st.text_input("(3) 관련된 심리 현상:", placeholder="예: 사회적 억제")
+        if st.button("⚔️ 퀘스트 1 제출 및 공격"):
+            score, max_score, fb = grade_set1_q1(ans1, ans2, ans3)
+            earned_xp = int(score * 20)
+            add_xp(earned_xp)
             
-            if st.button("서·논술형 1 채점하기"):
-                score, max_score, fb = grade_set1_q1(a1, a2, a3)
-                st.metric("획득 점수", f"{score} / {max_score} 점")
-                
-                # 결과 기록 및 출력
-                for q_name, result in fb.items():
-                    if result["pass"]:
-                        st.success(f"**{q_name}**: {result['comment']}")
-                    else:
-                        st.error(f"**{q_name}**: {result['comment']}")
-                        # 오답 노트 세션에 저장
-                        st.session_state.incorrect_notes[f"[세트1-문항1] {q_name}"] = result
-
-        # [서·논술형 2]
-        with q_tab2:
-            st.subheader("설명문 작성하기")
-            st.info("주어진 첫 문장: 과제의 특성과 난이도에 따라 우리의 학습 효율을 높이는 방법은 다르게 적용되어야 한다.")
+            st.write(f"### 획득 경험치: +{earned_xp} XP (점수: {score}/{max_score})")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                m1 = st.selectbox("(1) 설명 방법 선택:", ["예시", "정의", "비교", "대조"])
-                t1 = st.text_area("(1) 문장 작성:", placeholder="예: 예를 들어, 비교적 쉬운 과제는 모임을 통해 함께 공부하는 것이 효과적이다. (예시)")
-            with col2:
-                m2 = st.selectbox("(2) 설명 방법 선택:", ["대조", "인과", "예시"])
-                t2 = st.text_area("(2) 문장 작성:", placeholder="예: 반면 지나치게 어려운 과제는 차분히 혼자 집중할 때 효율성이 높아진다. (대조)")
+            for q_name, result in fb.items():
+                if result["pass"]:
+                    st.success(f"**{q_name}**: {result['comment']}")
+                else:
+                    st.error(f"**{q_name}**: {result['comment']}")
+                    st.session_state.user_hp = max(0, st.session_state.user_hp - 10)
+                    st.session_state.incorrect_notes[f"[ST1-Q1] {q_name}"] = result
 
-            if st.button("서·논술형 2 채점하기"):
-                score, max_score, fb = grade_set1_q2(t1, t2, m1, m2)
-                st.metric("획득 점수", f"{score} / {max_score} 점")
-                
-                for q_name, result in fb.items():
-                    if result["pass"]:
-                        st.success(f"**{q_name}**: {result['comment']}")
-                    else:
-                        st.error(f"**{q_name}**: {result['comment']}")
-                        st.session_state.incorrect_notes[f"[세트1-문항2] {q_name}"] = result
+    # [퀘스트 2]
+    with q_tab2:
+        st.subheader("✍️ 퀘스트 2: 설명문 작성 공격!")
+        st.info("📜 주어진 첫 문장: 과제의 특성과 난이도에 따라 우리의 학습 효율을 높이는 방법은 다르게 적용되어야 한다.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            m1 = st.selectbox("(1) 문장 사용 기술(설명 방법):", ["예시", "정의", "비교", "대조"])
+            t1 = st.text_area("(1) 이어질 문장 작성:", placeholder="내용을 작성하고 끝에 (사용방법)을 표기하세요...")
+        with col2:
+            m2 = st.selectbox("(2) 문장 사용 기술(설명 방법):", ["대조", "인과", "예시"])
+            t2 = st.text_area("(2) 이어질 문장 작성:", placeholder="내용을 작성하고 끝에 (사용방법)을 표기하세요...")
 
-# ==========================================
-# [탭 2] 오답 노트 및 맞춤 피드백
-# ==========================================
+        if st.button("⚔️ 퀘스트 2 제출 및 공격"):
+            score, max_score, fb = grade_set1_q2(t1, t2, m1, m2)
+            earned_xp = int(score * 25)
+            add_xp(earned_xp)
+            
+            st.write(f"### 획득 경험치: +{earned_xp} XP (점수: {score}/{max_score})")
+            
+            for q_name, result in fb.items():
+                if result["pass"]:
+                    st.success(f"**{q_name}**: {result['comment']}")
+                else:
+                    st.error(f"**{q_name}**: {result['comment']}")
+                    st.session_state.user_hp = max(0, st.session_state.user_hp - 10)
+                    st.session_state.incorrect_notes[f"[ST1-Q2] {q_name}"] = result
+
+# ----------------------------------------------------
+# [탭 2] 오답 재훈련소
+# ----------------------------------------------------
 with main_tab2:
-    st.header("📖 나만의 오답 노트 & 개별 피드백")
-    st.caption("채점 과정에서 보완이 필요한 답안들을 모아 복습할 수 있는 공간입니다.")
+    st.header("📜 오답 재훈련소 (피드백 & 복습)")
+    st.caption("실패했던 퀘스트를 다시 분석하고 약점을 보완하세요.")
     
     if not st.session_state.incorrect_notes:
-        st.info("🎉 현재 보완이 필요한 오답이 없습니다! 문항을 풀고 채점을 진행해 보세요.")
+        st.info("🎉 완벽합니다! 현재 보완할 오답 퀘스트가 없습니다. 모든 던전을 클리어하세요!")
     else:
-        if st.button("오답 노트 초기화"):
-            st.session_state.incorrect_notes = {}
-            st.rerun()
-
         for title, item in list(st.session_state.incorrect_notes.items()):
-            with st.expander(f"❌ {title}", expanded=True):
-                st.write(f"**내가 작성한 답안:** `{item['user_ans'] if item['user_ans'] else '(미입력)'}`")
-                st.warning(f"**피드백:** {item['comment']}")
-                st.info(f"💡 **이렇게 수정해 보세요:** {item['guide']}")
+            with st.expander(f"⚠️ {title}", expanded=True):
+                st.write(f"**작성했던 답안:** `{item['user_ans'] if item['user_ans'] else '(미입력)'}`")
+                st.warning(f"**분석 피드백:** {item['comment']}")
+                st.info(f"💡 **공격력 강화 가이드 (수정 방향):** {item['guide']}")
